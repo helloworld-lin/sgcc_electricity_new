@@ -13,7 +13,7 @@ ENV PYTHON_IN_DOCKER='PYTHON_IN_DOCKER'
 # 创建非root用户
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# 安装系统依赖（包含编译工具）
+# 安装系统依赖（包含Python数值计算包）
 RUN set -eux; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -25,9 +25,10 @@ RUN set -eux; \
       tar \
       curl \
       build-essential \
-      gcc \
-      g++ \
-      python3-dev \
+      python3-numpy \
+      python3-pip \
+      python3-setuptools \
+      python3-wheel \
     ; \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime; \
     echo $TZ > /etc/timezone; \

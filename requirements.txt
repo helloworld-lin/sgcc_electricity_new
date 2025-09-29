@@ -5,6 +5,7 @@ Pillow>=10.0.0
 webdrivermanager_cn==2.4.0
 webdriver-manager==4.0.2
 # onnxruntime==1.18.1  # 已移除，使用NCC算法替代
-numpy==1.22.4
+# 完全移除numpy依赖，使用系统包管理器安装
+# numpy==1.22.4
 # python-dotenv
 # python-dateutil
