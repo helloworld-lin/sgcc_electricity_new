@@ -413,3 +413,4 @@ TO-DO
 
 ### 再次说明，希望大家通过认真看文档和浏览历史issue解决问题，毕竟收费群不是开源项目的本意。
 首次GitHub Actions构建时间: Mon Sep 29 11:33:10 CST 2025
+Docker Hub认证已配置，重新触发构建: Mon Sep 29 11:34:48 CST 2025
