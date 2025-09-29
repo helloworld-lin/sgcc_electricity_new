@@ -16,3 +16,8 @@
 - 更新了GitHub Secrets
 
 重新触发构建：Mon Sep 29 12:43:03 CST 2025
+## 更新Docker Hub用户名
+
+已更新GitHub Secrets中的Docker Hub用户名配置，重新触发构建测试。
+
+更新时间: Mon Sep 29 12:45:47 CST 2025
