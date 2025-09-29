@@ -1,11 +1,10 @@
-name: Build ARMv7 Docker Image (镜像同步版-已禁用)
+name: Build ARMv7 Docker Image (成功版本+同步)
 
 on:
-  # 已禁用 - 使用新的成功版本
-  # push:
-  #   branches: [ main, master ]
-  # pull_request:
-  #   branches: [ main, master ]
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
 
 env:
@@ -32,28 +31,30 @@ jobs:
       if: github.event_name != 'pull_request'
       uses: docker/login-action@v3
       with:
-        registry: docker.io
+        registry: ${{ env.REGISTRY }}
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     
-    - name: Extract metadata for Docker Hub
-      id: meta-dockerhub
+    - name: Extract metadata
+      id: meta
       uses: docker/metadata-action@v5
       with:
-        images: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+        images: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
         tags: |
+          type=ref,event=branch
+          type=ref,event=pr
           type=raw,value=armv7-latest,enable={{is_default_branch}}
           type=sha,prefix=armv7-{{branch}}-
     
-    - name: Build and push to Docker Hub
+    - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
         context: .
         file: ./Dockerfile-armv7
         platforms: linux/arm/v7
         push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ steps.meta-dockerhub.outputs.tags }}
-        labels: ${{ steps.meta-dockerhub.outputs.labels }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
     
@@ -97,7 +98,7 @@ jobs:
         docker push $ALIYUN_IMAGE
         
         echo "✅ 镜像同步完成！"
-        
+
     - name: Create build summary
       run: |
         echo "## 🎉 ARMv7 镜像构建完成 (双镜像源)" >> $GITHUB_STEP_SUMMARY
@@ -118,6 +119,8 @@ jobs:
         echo "  -v \$(pwd):/data \\" >> $GITHUB_STEP_SUMMARY
         echo "  -e PHONE_NUMBER='your_phone' \\" >> $GITHUB_STEP_SUMMARY
         echo "  -e PASSWORD='your_password' \\" >> $GITHUB_STEP_SUMMARY
+        echo "  -e HASS_URL='http://homeassistant.local:8123/' \\" >> $GITHUB_STEP_SUMMARY
+        echo "  -e HASS_TOKEN='your_token' \\" >> $GITHUB_STEP_SUMMARY
         echo "  crpi-s1ugew53omsoe998.cn-hangzhou.personal.cr.aliyuncs.com/helloworld-lin/sgcc_electricity:armv7-latest" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
@@ -128,7 +131,9 @@ jobs:
         echo "  -v \$(pwd):/data \\" >> $GITHUB_STEP_SUMMARY
         echo "  -e PHONE_NUMBER='your_phone' \\" >> $GITHUB_STEP_SUMMARY
         echo "  -e PASSWORD='your_password' \\" >> $GITHUB_STEP_SUMMARY
-        echo "  ${{ secrets.DOCKERHUB_USERNAME }}/sgcc_electricity:armv7-latest" >> $GITHUB_STEP_SUMMARY
+        echo "  -e HASS_URL='http://homeassistant.local:8123/' \\" >> $GITHUB_STEP_SUMMARY
+        echo "  -e HASS_TOKEN='your_token' \\" >> $GITHUB_STEP_SUMMARY
+        echo "  ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:armv7-latest" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 🔄 镜像同步说明" >> $GITHUB_STEP_SUMMARY

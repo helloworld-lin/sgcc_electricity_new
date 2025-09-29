@@ -1,9 +1,22 @@
+# 🏠 SGCC电力查询 - ARMv7架构 Docker Compose配置
+# 
+# 🎯 镜像来源：
+# - 阿里云个人版（国内推荐）：crpi-s1ugew53omsoe998.cn-hangzhou.personal.cr.aliyuncs.com/helloworld-lin/sgcc_electricity:armv7-latest  
+# - Docker Hub（国外）：helloworld-lin/sgcc_electricity:armv7-latest
+#
+# 🚀 使用方法：
+# 1. 复制 example.env 为 .env 并填写配置
+# 2. 运行：docker-compose -f docker-compose-armv7.yml up -d
+# 3. 查看日志：docker-compose -f docker-compose-armv7.yml logs -f
+#
+# 📱 适用设备：树莓派、ARM开发板等ARMv7架构设备
+#
 version: '3.8'
 
 services:
   sgcc_electricity_armv7:
-    # 使用阿里云镜像（国内推荐）
-    image: registry.cn-hangzhou.aliyuncs.com/helloworld-lin/sgcc_electricity:armv7-latest
+    # 使用阿里云个人版镜像（国内推荐）
+    image: crpi-s1ugew53omsoe998.cn-hangzhou.personal.cr.aliyuncs.com/helloworld-lin/sgcc_electricity:armv7-latest
     # 备用Docker Hub镜像：helloworld-lin/sgcc_electricity:armv7-latest
     container_name: sgcc_electricity_armv7
     platform: linux/arm/v7
