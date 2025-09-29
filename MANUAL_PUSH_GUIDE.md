@@ -34,7 +34,7 @@ git status
 git push
 
 # 3. 如果推送失败，尝试重新设置远程URL
-git remote set-url origin https://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@github.com/helloworld-lin/sgcc_electricity_new.git
+git remote set-url origin https://YOUR_TOKEN@github.com/helloworld-lin/sgcc_electricity_new.git
 git push
 
 # 4. 查看推送结果
