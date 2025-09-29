@@ -13,7 +13,7 @@ ENV PYTHON_IN_DOCKER='PYTHON_IN_DOCKER'
 # 创建非root用户
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# 安装系统依赖（包含编译工具和图像库依赖）
+# 安装系统依赖（包含预编译的numpy和Pillow）
 RUN set -eux; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -24,25 +24,12 @@ RUN set -eux; \
       wget \
       tar \
       curl \
-      build-essential \
-      python3-dev \
       python3-pip \
       python3-setuptools \
       python3-wheel \
-      pkg-config \
-      libopenblas-dev \
-      liblapack-dev \
-      gfortran \
-      zlib1g-dev \
-      libjpeg-dev \
-      libpng-dev \
-      libtiff-dev \
-      libfreetype6-dev \
-      liblcms2-dev \
-      libwebp-dev \
-      libharfbuzz-dev \
-      libfribidi-dev \
-      libxcb1-dev \
+      python3-numpy \
+      python3-pil \
+      python3-dev \
     ; \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime; \
     echo $TZ > /etc/timezone; \
@@ -54,17 +41,17 @@ RUN set -eux; \
 WORKDIR /app
 RUN mkdir -p /data && chown -R appuser:appuser /app /data
 
-# 复制requirements.txt并安装Python依赖（ARMv7优化）
+# 复制requirements.txt并安装Python依赖（跳过系统已有的包）
 COPY requirements.txt /tmp/requirements.txt
 RUN set -eux; \
     pip install --no-cache-dir --upgrade pip; \
-    # 设置numpy使用OpenBLAS
-    export NPY_NUM_BUILD_JOBS=1; \
-    export OPENBLAS_NUM_THREADS=1; \
-    # 安装依赖，优先使用预编译wheel
-    pip install --no-cache-dir --prefer-binary -r /tmp/requirements.txt; \
+    # 安装pip依赖（跳过numpy和Pillow，使用系统包）
+    pip install --no-cache-dir -r /tmp/requirements.txt; \
     rm -rf /tmp/*; \
-    pip cache purge
+    pip cache purge; \
+    # 验证numpy和Pillow可以正常导入
+    python3 -c "import numpy; print('numpy version:', numpy.__version__)"; \
+    python3 -c "from PIL import Image; print('Pillow imported successfully')"
 
 # 智能下载geckodriver（ARMv7兼容版本）
 RUN set -eux; \

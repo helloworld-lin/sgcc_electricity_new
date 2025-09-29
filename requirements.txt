@@ -2,9 +2,10 @@ requests==2.31.0
 selenium==4.34.2
 schedule==1.2.1
 sympy==1.12
-numpy==1.24.4
-Pillow==10.0.1
 python-dotenv==1.0.0
 webdrivermanager_cn==2.4.0
 webdriver-manager==4.0.2
+# numpy和Pillow使用系统包管理器安装，避免ARMv7编译问题
+# numpy==1.24.4  # 改用系统python3-numpy
+# Pillow==10.0.1  # 改用系统python3-pillow
 # onnxruntime==1.18.1  # 已移除，使用NCC算法替代
