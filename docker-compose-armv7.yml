@@ -2,8 +2,9 @@ version: '3.8'
 
 services:
   sgcc_electricity_armv7:
-    # 使用本地构建的ARMv7镜像
-    image: sgcc_electricity:armv7-latest
+    # 使用阿里云镜像（国内推荐）
+    image: registry.cn-hangzhou.aliyuncs.com/helloworld-lin/sgcc_electricity:armv7-latest
+    # 备用Docker Hub镜像：helloworld-lin/sgcc_electricity:armv7-latest
     container_name: sgcc_electricity_armv7
     platform: linux/arm/v7
     

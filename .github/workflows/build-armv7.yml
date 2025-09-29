@@ -31,32 +31,58 @@ jobs:
       if: github.event_name != 'pull_request'
       uses: docker/login-action@v3
       with:
-        registry: ${{ env.REGISTRY }}
+        registry: docker.io
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     
-    - name: Extract metadata
-      id: meta
+    - name: Log in to Aliyun Container Registry
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: registry.cn-hangzhou.aliyuncs.com
+        username: ${{ secrets.ALIYUN_USERNAME }}
+        password: ${{ secrets.ALIYUN_PASSWORD }}
+    
+    - name: Extract metadata for Docker Hub
+      id: meta-dockerhub
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+        images: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
         tags: |
-          type=ref,event=branch
-          type=ref,event=pr
           type=raw,value=armv7-latest,enable={{is_default_branch}}
           type=sha,prefix=armv7-{{branch}}-
     
-    - name: Build and push Docker image
+    - name: Extract metadata for Aliyun
+      id: meta-aliyun
+      uses: docker/metadata-action@v5
+      with:
+        images: registry.cn-hangzhou.aliyuncs.com/${{ secrets.ALIYUN_NAMESPACE }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=raw,value=armv7-latest,enable={{is_default_branch}}
+          type=sha,prefix=armv7-{{branch}}-
+    
+    - name: Build and push to Docker Hub
       uses: docker/build-push-action@v5
       with:
         context: .
         file: ./Dockerfile-armv7
         platforms: linux/arm/v7
         push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        tags: ${{ steps.meta-dockerhub.outputs.tags }}
+        labels: ${{ steps.meta-dockerhub.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+    
+    - name: Build and push to Aliyun
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile-armv7
+        platforms: linux/arm/v7
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta-aliyun.outputs.tags }}
+        labels: ${{ steps.meta-aliyun.outputs.labels }}
+        cache-from: type=gha
     
     - name: Test image (if not pushing)
       if: github.event_name == 'pull_request'
@@ -80,14 +106,18 @@ jobs:
         echo "- **提交**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 🚀 使用方法" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**阿里云镜像（国内推荐）**：" >> $GITHUB_STEP_SUMMARY
         echo '```bash' >> $GITHUB_STEP_SUMMARY
-        echo "# 在ARMv7设备上运行" >> $GITHUB_STEP_SUMMARY
         echo "docker run -d --name sgcc_electricity \\" >> $GITHUB_STEP_SUMMARY
         echo "  --network host \\" >> $GITHUB_STEP_SUMMARY
         echo "  -v \$(pwd):/data \\" >> $GITHUB_STEP_SUMMARY
         echo "  -e PHONE_NUMBER='your_phone' \\" >> $GITHUB_STEP_SUMMARY
         echo "  -e PASSWORD='your_password' \\" >> $GITHUB_STEP_SUMMARY
-        echo "  -e HASS_URL='http://homeassistant.local:8123/' \\" >> $GITHUB_STEP_SUMMARY
-        echo "  -e HASS_TOKEN='your_token' \\" >> $GITHUB_STEP_SUMMARY
-        echo "  ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:armv7-latest" >> $GITHUB_STEP_SUMMARY
+        echo "  registry.cn-hangzhou.aliyuncs.com/${{ secrets.ALIYUN_NAMESPACE }}/sgcc_electricity:armv7-latest" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Docker Hub镜像（国外）**：" >> $GITHUB_STEP_SUMMARY
+        echo '```bash' >> $GITHUB_STEP_SUMMARY
+        echo "docker.io/${{ secrets.DOCKERHUB_USERNAME }}/sgcc_electricity:armv7-latest" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY

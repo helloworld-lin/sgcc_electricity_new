@@ -1,0 +1,44 @@
+commit 9ba5bcda0981f4f3465a3050467be6324cacd548
+Author: helloworld-lin <your_email@example.com>
+Date:   Mon Sep 29 14:19:08 2025 +0800
+
+    🖼️ 修复Pillow构建问题：添加zlib和图像库依赖，使用系统包管理器安装Pillow
+
+diff --git a/Dockerfile-armv7 b/Dockerfile-armv7
+index c985548..6ec73e7 100644
+--- a/Dockerfile-armv7
++++ b/Dockerfile-armv7
+@@ -13,7 +13,7 @@ ENV PYTHON_IN_DOCKER='PYTHON_IN_DOCKER'
+ # 创建非root用户
+ RUN groupadd -r appuser && useradd -r -g appuser appuser
+ 
+-# 安装系统依赖（包含Python数值计算包）
++# 安装系统依赖（包含Python数值计算包和Pillow依赖）
+ RUN set -eux; \
+     apt-get update; \
+     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+@@ -29,6 +29,10 @@ RUN set -eux; \
+       python3-pip \
+       python3-setuptools \
+       python3-wheel \
++      python3-pillow \
++      zlib1g-dev \
++      libjpeg-dev \
++      libpng-dev \
+     ; \
+     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime; \
+     echo $TZ > /etc/timezone; \
+diff --git a/requirements.txt b/requirements.txt
+index 5147386..a80d203 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,7 +1,8 @@
+ requests==2.31.0
+ selenium==4.34.2
+ schedule==1.2.1
+-Pillow>=10.0.0
++# 使用系统包管理器安装Pillow
++# Pillow>=10.0.0
+ webdrivermanager_cn==2.4.0
+ webdriver-manager==4.0.2
+ # onnxruntime==1.18.1  # 已移除，使用NCC算法替代
