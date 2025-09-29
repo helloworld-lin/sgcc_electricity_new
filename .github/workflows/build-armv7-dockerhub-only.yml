@@ -79,9 +79,9 @@ jobs:
         # 等待镜像推送完成
         sleep 10
         
-        # 拉取Docker Hub镜像
-        echo "📥 从Docker Hub拉取镜像..."
-        docker pull $DOCKERHUB_IMAGE
+        # 拉取Docker Hub镜像（指定ARMv7平台）
+        echo "📥 从Docker Hub拉取ARMv7镜像..."
+        docker pull --platform linux/arm/v7 $DOCKERHUB_IMAGE
         
         # 重新标记为阿里云镜像
         echo "🏷️ 重新标记镜像..."
