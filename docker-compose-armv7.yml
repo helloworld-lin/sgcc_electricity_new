@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  sgcc_electricity_armv7:
+    # 使用本地构建的ARMv7镜像
+    image: sgcc_electricity:armv7-latest
+    container_name: sgcc_electricity_armv7
+    platform: linux/arm/v7
+    
+    # 网络配置
+    network_mode: "host"
+    
+    # 环境变量配置
+    environment:
+      - SET_CONTAINER_TIMEZONE=true
+      - CONTAINER_TIMEZONE=Asia/Shanghai
+      - TZ=Asia/Shanghai
+      # 以下环境变量需要根据实际情况修改
+      - PHONE_NUMBER=${PHONE_NUMBER:-}
+      - PASSWORD=${PASSWORD:-}
+      - HASS_URL=${HASS_URL:-http://homeassistant.local:8123/}
+      - HASS_TOKEN=${HASS_TOKEN:-}
+      - JOB_START_TIME=${JOB_START_TIME:-07:00}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - RETRY_TIMES_LIMIT=${RETRY_TIMES_LIMIT:-5}
+      - DRIVER_IMPLICITY_WAIT_TIME=${DRIVER_IMPLICITY_WAIT_TIME:-60}
+      - LOGIN_EXPECTED_TIME=${LOGIN_EXPECTED_TIME:-10}
+      - RETRY_WAIT_TIME_OFFSET_UNIT=${RETRY_WAIT_TIME_OFFSET_UNIT:-15}
+      - DATA_RETENTION_DAYS=${DATA_RETENTION_DAYS:-7}
+      - RECHARGE_NOTIFY=${RECHARGE_NOTIFY:-false}
+      - BALANCE=${BALANCE:-5.0}
+      - PUSHPLUS_TOKEN=${PUSHPLUS_TOKEN:-}
+      - IGNORE_USER_ID=${IGNORE_USER_ID:-xxxx,xxxx}
+      - ENABLE_DATABASE_STORAGE=${ENABLE_DATABASE_STORAGE:-false}
+      - DB_NAME=${DB_NAME:-homeassistant.db}
+    
+    # 环境变量文件（可选）
+    env_file:
+      - .env
+    
+    # 卷映射
+    volumes:
+      - ./:/data  # 映射当前目录到容器内的/data目录
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    
+    # 重启策略
+    restart: unless-stopped
+    
+    # 启动命令
+    command: python3 main.py
+    
+    # 初始化进程
+    init: true
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "python3", "-c", "from ncc_matcher import NCCMatcher; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # 资源限制（针对ARMv7设备优化）
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+
+# 网络配置（可选）
+networks:
+  default:
+    driver: bridge
+
+# 卷配置（可选）
+volumes:
+  sgcc_data:
+    driver: local

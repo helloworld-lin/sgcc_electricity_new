@@ -1,0 +1,55 @@
+# 简化版Dockerfile - 单阶段构建，最小化镜像
+FROM python:3.12.11-slim-bookworm
+
+# 设置环境变量
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV SET_CONTAINER_TIMEZONE=true
+ENV CONTAINER_TIMEZONE=Asia/Shanghai
+ENV TZ=Asia/Shanghai
+ENV LANG=C.UTF-8
+ENV PYTHON_IN_DOCKER='PYTHON_IN_DOCKER'
+
+# 创建非root用户
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# 安装系统依赖和Python包（合并到一个RUN命令以减少层数）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    firefox-esr \
+    tzdata \
+    jq \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone \
+    && dpkg-reconfigure --frontend noninteractive tzdata \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# 创建应用目录
+WORKDIR /app
+RUN mkdir -p /data && chown -R appuser:appuser /app /data
+
+# 复制requirements.txt并安装Python依赖
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r /tmp/requirements.txt \
+    && rm -rf /tmp/* \
+    && pip cache purge
+
+# 复制应用代码
+COPY scripts/*.py /app/
+RUN chown -R appuser:appuser /app
+
+# 下载Firefox驱动（在root用户下）
+RUN python3 firefox_driver_download.py && \
+    find /root/.webdriver -name "geckodriver" -type f -exec mv {} /usr/local/bin/geckodriver \; && \
+    chmod +x /usr/local/bin/geckodriver
+
+# 切换到非root用户
+USER appuser
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python3 -c "from scripts.ncc_matcher import SliderCaptchaMatcher; print('OK')" || exit 1
+
+# 启动命令
+CMD ["python3", "main.py"]

@@ -1,0 +1,93 @@
+name: Build ARMv7 Docker Image
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: sgcc_electricity
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: linux/arm/v7
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Docker Hub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=raw,value=armv7-latest,enable={{is_default_branch}}
+          type=sha,prefix=armv7-{{branch}}-
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile-armv7
+        platforms: linux/arm/v7
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Test image (if not pushing)
+      if: github.event_name == 'pull_request'
+      run: |
+        docker buildx build \
+          --platform linux/arm/v7 \
+          --file ./Dockerfile-armv7 \
+          --load \
+          --tag test-image \
+          .
+        echo "✅ ARM v7 镜像构建测试成功"
+    
+    - name: Create build summary
+      run: |
+        echo "## 🎉 ARMv7 镜像构建完成" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 构建信息" >> $GITHUB_STEP_SUMMARY
+        echo "- **目标架构**: linux/arm/v7" >> $GITHUB_STEP_SUMMARY
+        echo "- **基础镜像**: python:3.12-slim-bookworm" >> $GITHUB_STEP_SUMMARY
+        echo "- **构建时间**: $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "- **提交**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🚀 使用方法" >> $GITHUB_STEP_SUMMARY
+        echo '```bash' >> $GITHUB_STEP_SUMMARY
+        echo "# 在ARMv7设备上运行" >> $GITHUB_STEP_SUMMARY
+        echo "docker run -d --name sgcc_electricity \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --network host \\" >> $GITHUB_STEP_SUMMARY
+        echo "  -v \$(pwd):/data \\" >> $GITHUB_STEP_SUMMARY
+        echo "  -e PHONE_NUMBER='your_phone' \\" >> $GITHUB_STEP_SUMMARY
+        echo "  -e PASSWORD='your_password' \\" >> $GITHUB_STEP_SUMMARY
+        echo "  -e HASS_URL='http://homeassistant.local:8123/' \\" >> $GITHUB_STEP_SUMMARY
+        echo "  -e HASS_TOKEN='your_token' \\" >> $GITHUB_STEP_SUMMARY
+        echo "  ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:armv7-latest" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
