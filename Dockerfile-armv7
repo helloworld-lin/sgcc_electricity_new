@@ -13,7 +13,7 @@ ENV PYTHON_IN_DOCKER='PYTHON_IN_DOCKER'
 # 创建非root用户
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# 安装系统依赖并调试numpy路径问题
+# 安装系统依赖（跳过系统numpy，直接用pip）
 RUN set -eux; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -27,52 +27,50 @@ RUN set -eux; \
       python3-pip \
       python3-setuptools \
       python3-wheel \
-      python3-numpy \
-      python3-pil \
       python3-dev \
       build-essential \
       gcc \
       g++ \
+      gfortran \
+      libopenblas-dev \
+      liblapack-dev \
+      pkg-config \
     ; \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime; \
     echo $TZ > /etc/timezone; \
     dpkg-reconfigure --frontend noninteractive tzdata; \
     rm -rf /var/lib/apt/lists/*; \
-    apt-get clean; \
-    # 调试：检查numpy包的实际安装位置
-    echo "🔍 调试numpy安装情况:"; \
-    dpkg -l | grep numpy || echo "numpy包未找到"; \
-    find /usr -name "*numpy*" 2>/dev/null | head -10 || echo "未找到numpy文件"; \
-    python3 -c "import sys; print('Python路径:'); [print(p) for p in sys.path]"; \
-    # 尝试手动添加系统包路径
-    python3 -c "import sys; sys.path.append('/usr/lib/python3/dist-packages'); import numpy as np; print('✅ numpy version:', np.__version__)" || { \
-        echo "❌ 系统numpy失败，将使用pip安装"; \
-        # 如果系统包失败，使用pip安装较老版本的numpy（ARMv7友好）
-        pip install --no-cache-dir --root-user-action=ignore numpy==1.21.6; \
-        python3 -c "import numpy as np; print('✅ pip numpy version:', np.__version__)"; \
-    }; \
-    # 验证PIL
-    python3 -c "from PIL import Image; print('✅ PIL.Image导入成功')" || { \
-        echo "❌ PIL失败"; \
-        pip install --no-cache-dir --root-user-action=ignore Pillow==9.5.0; \
-        python3 -c "from PIL import Image; print('✅ pip PIL导入成功')"; \
-    }
+    apt-get clean
 
 # 创建应用目录
 WORKDIR /app
 RUN mkdir -p /data && chown -R appuser:appuser /app /data
 
+# 先安装numpy和Pillow（ARMv7兼容版本）
+RUN set -eux; \
+    pip install --no-cache-dir --upgrade pip; \
+    # 安装预编译的numpy和Pillow（避免ARMv7编译问题）
+    pip install --no-cache-dir --root-user-action=ignore \
+      --only-binary=all \
+      --find-links https://www.piwheels.org/simple \
+      numpy==1.24.4 \
+      Pillow==10.0.1; \
+    # 验证numpy和Pillow安装成功
+    python3 -c "import numpy as np; print('✅ numpy version:', np.__version__, 'shape test:', np.array([1,2,3]).shape)"; \
+    python3 -c "from PIL import Image; print('✅ PIL导入成功')"; \
+    pip cache purge
+
 # 复制requirements.txt并安装其他Python依赖
 COPY requirements.txt /tmp/requirements.txt
 RUN set -eux; \
-    pip install --no-cache-dir --upgrade pip; \
-    # 从requirements.txt中排除numpy和Pillow（已处理）
+    # 从requirements.txt中排除numpy和Pillow（已安装）
     grep -v "^numpy" /tmp/requirements.txt | grep -v "^Pillow" > /tmp/requirements_filtered.txt || echo "过滤完成"; \
+    cat /tmp/requirements_filtered.txt; \
     pip install --no-cache-dir --root-user-action=ignore -r /tmp/requirements_filtered.txt; \
     rm -rf /tmp/*; \
     pip cache purge; \
     # 最终验证：确保所有关键包都可用
-    python3 -c "import numpy as np; import requests; import selenium; from PIL import Image; print('✅ 所有关键依赖验证通过')"
+    python3 -c "import numpy as np; import requests; import selenium; from PIL import Image; import sympy; print('✅ 所有关键依赖验证通过')"
 
 # 智能下载geckodriver（ARMv7兼容版本）
 RUN set -eux; \
