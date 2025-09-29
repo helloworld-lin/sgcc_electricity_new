@@ -51,13 +51,23 @@ RUN pip install --no-cache-dir --upgrade pip \
     && rm -rf /tmp/* \
     && pip cache purge
 
-# 使用Python脚本下载geckodriver（支持ARMv7）
-COPY scripts/firefox_driver_download.py /tmp/firefox_driver_download.py
-RUN cd /tmp && python3 firefox_driver_download.py && \
-    find /root/.webdriver -name "geckodriver" -type f -exec mv {} /usr/local/bin/geckodriver \; && \
-    chmod +x /usr/local/bin/geckodriver && \
-    geckodriver --version && \
-    rm -rf /root/.webdriver /tmp/firefox_driver_download.py
+# 直接下载geckodriver（ARMv7架构）
+RUN set -eux; \
+    ARCH=$(dpkg --print-architecture); \
+    VER=v0.35.0; \
+    echo "检测到架构: $ARCH"; \
+    case "$ARCH" in \
+      amd64)  URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux64.tar.gz" ;; \
+      arm64)  URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux-aarch64.tar.gz" ;; \
+      armhf)  URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux-armv7l.tar.gz" ;; \
+      *) echo "不支持的架构: $ARCH"; exit 1 ;; \
+    esac; \
+    echo "下载 geckodriver 从: $URL"; \
+    wget -O /tmp/geckodriver.tgz "$URL" --retry-connrefused --tries=10 --timeout=60; \
+    tar -xzf /tmp/geckodriver.tgz -C /usr/local/bin/; \
+    chmod +x /usr/local/bin/geckodriver; \
+    geckodriver --version; \
+    rm -f /tmp/geckodriver.tgz
 
 # 复制应用代码
 COPY scripts/*.py /app/
