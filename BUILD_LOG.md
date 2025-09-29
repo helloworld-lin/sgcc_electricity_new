@@ -8,3 +8,11 @@
 - Docker Hub认证: 已配置完成
 
 这是第一次完整的自动化构建！
+## Docker Hub认证修复
+
+已更新Docker Hub认证信息：
+- 确认了正确的用户名
+- 重新生成了访问令牌
+- 更新了GitHub Secrets
+
+重新触发构建：Mon Sep 29 12:43:03 CST 2025
