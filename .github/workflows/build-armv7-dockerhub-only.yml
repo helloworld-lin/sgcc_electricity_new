@@ -1,4 +1,4 @@
-name: Build ARMv7 Docker Image (Docker Hub Only)
+name: Build ARMv7 Docker Image (镜像同步版)
 
 on:
   push:
@@ -67,19 +67,60 @@ jobs:
           .
         echo "✅ ARM v7 镜像构建测试成功"
     
+    - name: Mirror to Aliyun Container Registry
+      if: github.event_name != 'pull_request'
+      run: |
+        echo "🔄 开始镜像同步到阿里云..."
+        
+        # 设置变量
+        DOCKERHUB_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/sgcc_electricity:armv7-latest"
+        ALIYUN_IMAGE="crpi-s1ugew53omsoe998.cn-hangzhou.personal.cr.aliyuncs.com/helloworld-lin/sgcc_electricity:armv7-latest"
+        
+        # 等待镜像推送完成
+        sleep 10
+        
+        # 拉取Docker Hub镜像
+        echo "📥 从Docker Hub拉取镜像..."
+        docker pull $DOCKERHUB_IMAGE
+        
+        # 重新标记为阿里云镜像
+        echo "🏷️ 重新标记镜像..."
+        docker tag $DOCKERHUB_IMAGE $ALIYUN_IMAGE
+        
+        # 登录阿里云个人版
+        echo "🔐 登录阿里云容器镜像服务（个人版）..."
+        echo "${{ secrets.ALIYUN_PASSWORD }}" | docker login crpi-s1ugew53omsoe998.cn-hangzhou.personal.cr.aliyuncs.com -u "${{ secrets.ALIYUN_USERNAME }}" --password-stdin
+        
+        # 推送到阿里云
+        echo "📤 推送到阿里云镜像仓库..."
+        docker push $ALIYUN_IMAGE
+        
+        echo "✅ 镜像同步完成！"
+        
     - name: Create build summary
       run: |
-        echo "## 🎉 ARMv7 镜像构建完成 (Docker Hub)" >> $GITHUB_STEP_SUMMARY
+        echo "## 🎉 ARMv7 镜像构建完成 (双镜像源)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📊 构建信息" >> $GITHUB_STEP_SUMMARY
         echo "- **目标架构**: linux/arm/v7" >> $GITHUB_STEP_SUMMARY
         echo "- **基础镜像**: python:3.12-slim-bookworm" >> $GITHUB_STEP_SUMMARY
         echo "- **构建时间**: $(date)" >> $GITHUB_STEP_SUMMARY
         echo "- **提交**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **同步状态**: ✅ Docker Hub → 阿里云" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 🚀 使用方法" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Docker Hub镜像**：" >> $GITHUB_STEP_SUMMARY
+        echo "**阿里云镜像（国内推荐）**：" >> $GITHUB_STEP_SUMMARY
+        echo '```bash' >> $GITHUB_STEP_SUMMARY
+        echo "docker run -d --name sgcc_electricity \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --network host \\" >> $GITHUB_STEP_SUMMARY
+        echo "  -v \$(pwd):/data \\" >> $GITHUB_STEP_SUMMARY
+        echo "  -e PHONE_NUMBER='your_phone' \\" >> $GITHUB_STEP_SUMMARY
+        echo "  -e PASSWORD='your_password' \\" >> $GITHUB_STEP_SUMMARY
+        echo "  crpi-s1ugew53omsoe998.cn-hangzhou.personal.cr.aliyuncs.com/helloworld-lin/sgcc_electricity:armv7-latest" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Docker Hub镜像（国外）**：" >> $GITHUB_STEP_SUMMARY
         echo '```bash' >> $GITHUB_STEP_SUMMARY
         echo "docker run -d --name sgcc_electricity \\" >> $GITHUB_STEP_SUMMARY
         echo "  --network host \\" >> $GITHUB_STEP_SUMMARY
@@ -89,5 +130,8 @@ jobs:
         echo "  ${{ secrets.DOCKERHUB_USERNAME }}/sgcc_electricity:armv7-latest" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### ⚠️ 注意" >> $GITHUB_STEP_SUMMARY
-        echo "阿里云镜像仓库暂时禁用，正在修复403错误。" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔄 镜像同步说明" >> $GITHUB_STEP_SUMMARY
+        echo "1. 首先构建并推送到Docker Hub" >> $GITHUB_STEP_SUMMARY
+        echo "2. 然后从Docker Hub拉取镜像" >> $GITHUB_STEP_SUMMARY
+        echo "3. 重新标记并推送到阿里云" >> $GITHUB_STEP_SUMMARY
+        echo "4. 绕过阿里云直接构建的403错误" >> $GITHUB_STEP_SUMMARY
