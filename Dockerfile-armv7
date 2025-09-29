@@ -51,19 +51,27 @@ RUN pip install --no-cache-dir --upgrade pip \
     && rm -rf /tmp/* \
     && pip cache purge
 
-# 直接下载geckodriver（ARMv7架构）
+# 智能下载geckodriver（ARMv7兼容版本）
 RUN set -eux; \
     ARCH=$(dpkg --print-architecture); \
-    VER=v0.35.0; \
     echo "检测到架构: $ARCH"; \
     case "$ARCH" in \
-      amd64)  URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux64.tar.gz" ;; \
-      arm64)  URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux-aarch64.tar.gz" ;; \
-      armhf)  URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux-armv7l.tar.gz" ;; \
+      amd64)  VER=v0.35.0; URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux64.tar.gz" ;; \
+      arm64)  VER=v0.35.0; URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux-aarch64.tar.gz" ;; \
+      armhf)  VER=v0.34.0; URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux32.tar.gz" ;; \
       *) echo "不支持的架构: $ARCH"; exit 1 ;; \
     esac; \
-    echo "下载 geckodriver 从: $URL"; \
-    wget -O /tmp/geckodriver.tgz "$URL" --retry-connrefused --tries=10 --timeout=60; \
+    echo "下载 geckodriver $VER 从: $URL"; \
+    wget -O /tmp/geckodriver.tgz "$URL" --retry-connrefused --tries=5 --timeout=30 || { \
+        echo "主URL失败，尝试备用版本..."; \
+        if [ "$ARCH" = "armhf" ]; then \
+            VER=v0.33.0; \
+            URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux32.tar.gz"; \
+            wget -O /tmp/geckodriver.tgz "$URL" --retry-connrefused --tries=3 --timeout=30; \
+        else \
+            exit 1; \
+        fi; \
+    }; \
     tar -xzf /tmp/geckodriver.tgz -C /usr/local/bin/; \
     chmod +x /usr/local/bin/geckodriver; \
     geckodriver --version; \
