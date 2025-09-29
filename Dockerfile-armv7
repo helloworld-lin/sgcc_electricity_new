@@ -13,7 +13,7 @@ ENV PYTHON_IN_DOCKER='PYTHON_IN_DOCKER'
 # 创建非root用户
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# 安装系统依赖（包含预编译的numpy和Pillow）
+# 安装系统依赖（包含预编译的numpy和Pillow）并验证
 RUN set -eux; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -35,23 +35,26 @@ RUN set -eux; \
     echo $TZ > /etc/timezone; \
     dpkg-reconfigure --frontend noninteractive tzdata; \
     rm -rf /var/lib/apt/lists/*; \
-    apt-get clean
+    apt-get clean; \
+    # 验证系统包numpy和Pillow立即可用
+    python3 -c "import numpy as np; print('✅ numpy version:', np.__version__)" || { echo '❌ numpy导入失败'; exit 1; }; \
+    python3 -c "from PIL import Image; print('✅ PIL.Image导入成功')" || { echo '❌ PIL导入失败'; exit 1; }
 
 # 创建应用目录
 WORKDIR /app
 RUN mkdir -p /data && chown -R appuser:appuser /app /data
 
-# 复制requirements.txt并安装Python依赖（跳过系统已有的包）
+# 复制requirements.txt并安装Python依赖（不包含numpy和Pillow）
 COPY requirements.txt /tmp/requirements.txt
 RUN set -eux; \
     pip install --no-cache-dir --upgrade pip; \
     # 安装pip依赖（跳过numpy和Pillow，使用系统包）
-    pip install --no-cache-dir -r /tmp/requirements.txt; \
+    pip install --no-cache-dir --root-user-action=ignore -r /tmp/requirements.txt; \
     rm -rf /tmp/*; \
     pip cache purge; \
-    # 验证numpy和Pillow可以正常导入
-    python3 -c "import numpy; print('numpy version:', numpy.__version__)"; \
-    python3 -c "from PIL import Image; print('Pillow imported successfully')"
+    # 最终验证：确保所有包都可用
+    python3 -c "import numpy as np; import requests; import selenium; print('✅ 所有依赖验证通过')"; \
+    python3 -c "from PIL import Image; print('✅ PIL验证通过')"
 
 # 智能下载geckodriver（ARMv7兼容版本）
 RUN set -eux; \
