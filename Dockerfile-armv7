@@ -42,9 +42,7 @@ RUN mkdir -p /data && chown -R appuser:appuser /app /data
 # 复制requirements.txt并安装Python依赖（优化armv7构建）
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple \
-    && pip config set global.trusted-host pypi.tuna.tsinghua.edu.cn \
-    && pip install --no-cache-dir --timeout=300 -r /tmp/requirements.txt \
+    && pip install --no-cache-dir -r /tmp/requirements.txt \
     && rm -rf /tmp/* \
     && pip cache purge
 
