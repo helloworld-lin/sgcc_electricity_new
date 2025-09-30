@@ -82,7 +82,14 @@ class ErrorWatcher:
         self.root_dir = kwargs.get('root_dir', os.getcwd())
         self.screenshot_dir = kwargs.get('screenshot_dir', os.path.join(self.root_dir, 'screenshots'))
         if not os.path.exists(self.screenshot_dir):
-            os.makedirs(self.screenshot_dir)
+            try:
+                os.makedirs(self.screenshot_dir, mode=0o777, exist_ok=True)
+            except PermissionError as e:
+                logging.warning(f"Cannot create screenshot directory at {self.screenshot_dir}: {e}")
+                # 降级到 /tmp 目录
+                self.screenshot_dir = '/tmp/screenshots'
+                os.makedirs(self.screenshot_dir, mode=0o777, exist_ok=True)
+                logging.info(f"Using fallback screenshot directory: {self.screenshot_dir}")
         self.driver = kwargs.get('driver', None)
 
     _instance = None

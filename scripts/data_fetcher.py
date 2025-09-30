@@ -202,7 +202,27 @@ class DataFetcher:
             firefox_options.add_argument('--disable-gpu')
             firefox_options.add_argument('--disable-dev-shm-usage')
             logging.info(f"Open Firefox.\r")
-            driver = webdriver.Firefox(options=firefox_options, service=FirefoxService("/usr/bin/geckodriver"))
+            
+            # 自动查找 geckodriver 路径
+            geckodriver_path = None
+            possible_paths = [
+                "/usr/local/bin/geckodriver",
+                "/usr/bin/geckodriver",
+                "geckodriver"  # 从 PATH 环境变量查找
+            ]
+            for path in possible_paths:
+                if os.path.exists(path) or path == "geckodriver":
+                    geckodriver_path = path
+                    logging.info(f"Found geckodriver at: {geckodriver_path}")
+                    break
+            
+            if geckodriver_path:
+                driver = webdriver.Firefox(options=firefox_options, service=FirefoxService(geckodriver_path))
+            else:
+                # 如果找不到，让 selenium 自动查找
+                logging.warning("Geckodriver path not found, letting selenium auto-detect")
+                driver = webdriver.Firefox(options=firefox_options)
+            
             driver.implicitly_wait(self.DRIVER_IMPLICITY_WAIT_TIME)
         return driver
 
