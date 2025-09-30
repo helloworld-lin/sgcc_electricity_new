@@ -50,30 +50,16 @@ RUN set -eux; \
 WORKDIR /app
 RUN mkdir -p /data && chown -R appuser:appuser /app /data
 
-# 智能安装numpy和Pillow（多重策略）
+# 修复Python 3.12兼容性并安装numpy（经验证的工作方案）
 RUN set -eux; \
-    pip install --no-cache-dir --upgrade pip setuptools wheel; \
-    # 策略1: 尝试从piwheels获取预编译包（无强制二进制限制）
-    echo "🎯 尝试从piwheels安装预编译包..."; \
-    pip install --no-cache-dir --root-user-action=ignore \
-      --find-links https://www.piwheels.org/simple \
-      --prefer-binary \
-      numpy==1.24.4 \
-      Pillow==10.0.1 2>/dev/null || { \
-        echo "❌ piwheels失败，尝试常规PyPI安装..."; \
-        # 策略2: 使用PyPI，但优先二进制包
-        pip install --no-cache-dir --root-user-action=ignore \
-          --prefer-binary \
-          numpy==1.24.4 \
-          Pillow==10.0.1 || { \
-            echo "❌ 1.24.4失败，尝试更低版本..."; \
-            # 策略3: 使用更保守的版本
-            pip install --no-cache-dir --root-user-action=ignore \
-              --prefer-binary \
-              numpy==1.21.0 \
-              Pillow==8.4.0; \
-          }; \
-      }; \
+    # 升级pip和核心包，修复Python 3.12兼容性
+    pip install --no-cache-dir --upgrade pip setuptools>=68.0.0 wheel; \
+    # 直接安装经验证与Python 3.12兼容的numpy版本
+    echo "🎯 安装Python 3.12兼容的numpy..."; \
+    pip install --no-cache-dir --root-user-action=ignore numpy>=1.26.0; \
+    # 安装Pillow
+    echo "🎯 安装Pillow..."; \
+    pip install --no-cache-dir --root-user-action=ignore Pillow>=10.0.0; \
     # 验证安装
     python3 -c "import numpy as np; print('✅ numpy version:', np.__version__, '- shape test:', np.array([1,2,3]).shape)"; \
     python3 -c "from PIL import Image; print('✅ PIL导入成功')"; \
