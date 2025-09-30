@@ -69,34 +69,33 @@ RUN set -eux; \
     pip cache purge; \
     python3 -c "import requests; import selenium; print('✅ 所有关键依赖验证通过')"
 
-# 下载 ARM 32位版本的 geckodriver
-# 注意: Mozilla 官方在 v0.29.0 后停止了对 ARM 32位的支持
-# 使用 v0.29.1 - 最后支持 ARM 32位的版本
+# 下载 ARMv7 版本的 geckodriver
+# Mozilla 官方已停止提供 ARMv7 版本
+# 使用社区编译版本: https://github.com/jamesmortensen/geckodriver-arm-binaries
 RUN set -eux; \
-    echo "📦 下载 ARM 32位版本的 geckodriver (v0.29.1)..."; \
-    VER=v0.29.1; \
-    ARCH="linux-arm"; \
-    URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-$ARCH.tar.gz"; \
+    echo "📦 下载社区编译的 ARMv7 geckodriver..."; \
+    VER=v0.33.0; \
+    REPO="https://github.com/jamesmortensen/geckodriver-arm-binaries/releases/download"; \
+    URL="$REPO/$VER/geckodriver-$VER-linux-armv7l.tar.gz"; \
     echo "🔗 URL: $URL"; \
+    echo "📌 来源: jamesmortensen/geckodriver-arm-binaries (社区维护)"; \
+    \
     wget -O /tmp/geckodriver.tgz "$URL" --retry-connrefused --tries=5 --timeout=30 || { \
-        echo "❌ 下载失败，尝试从备用镜像..."; \
-        URL="https://ghproxy.com/https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-$ARCH.tar.gz"; \
-        wget -O /tmp/geckodriver.tgz "$URL" --retry-connrefused --tries=3 --timeout=30 || { \
-            echo "⚠️  所有下载尝试失败，geckodriver 将由 webdriver-manager 在运行时下载"; \
-            exit 0; \
-        }; \
+        echo "⚠️  下载失败，尝试 v0.32.0..."; \
+        VER=v0.32.0; \
+        URL="$REPO/$VER/geckodriver-$VER-linux-armv7l.tar.gz"; \
+        wget -O /tmp/geckodriver.tgz "$URL" --retry-connrefused --tries=3 --timeout=30; \
     }; \
-    if [ -f /tmp/geckodriver.tgz ]; then \
-        tar -xzf /tmp/geckodriver.tgz -C /usr/local/bin/; \
-        chmod +x /usr/local/bin/geckodriver; \
-        echo "✅ Geckodriver 解压完成"; \
-        echo "📋 验证 geckodriver:"; \
-        file /usr/local/bin/geckodriver 2>/dev/null || true; \
-        ls -lh /usr/local/bin/geckodriver || true; \
-        /usr/local/bin/geckodriver --version || echo "⚠️  无法运行，将使用 webdriver-manager"; \
-        rm -f /tmp/geckodriver.tgz; \
-    fi; \
-    echo "🎉 ARMv7 运行环境准备完成"
+    \
+    tar -xzf /tmp/geckodriver.tgz -C /usr/local/bin/; \
+    chmod +x /usr/local/bin/geckodriver; \
+    echo "✅ Geckodriver 解压完成"; \
+    echo "📋 验证安装:"; \
+    file /usr/local/bin/geckodriver; \
+    ls -lh /usr/local/bin/geckodriver; \
+    /usr/local/bin/geckodriver --version || echo "⚠️  版本检查失败（可能需要在运行时验证）"; \
+    rm -f /tmp/geckodriver.tgz; \
+    echo "🎉 ARMv7 Geckodriver 安装完成"
 
 # 工作目录
 WORKDIR /data/scripts
