@@ -20,8 +20,9 @@ services:
     # 备用Docker Hub镜像：helloworld-lin/sgcc_electricity:armv7-latest
     container_name: sgcc_electricity_armv7
     platform: linux/arm/v7
-    # 使用当前用户运行容器，避免权限问题
-    user: "${UID:-1000}:${GID:-1000}"
+    
+    # 使用 root 权限运行（最高权限）
+    # user: "0:0"  # root用户，可选，默认就是root
     
     # 网络配置
     network_mode: "host"
@@ -54,13 +55,16 @@ services:
     env_file:
       - .env
     
-    # 卷映射
+    # 卷映射 - 挂载本地代码和数据
     volumes:
-      - ./:/data  # 映射当前目录到容器内的/data目录
+      - ./scripts:/data/scripts  # 挂载本地代码目录
+      - ./data:/data/data  # 数据存储
+      - ./.env:/data/.env:ro  # 环境变量文件（只读）
+      - ./homeassistant.db:/data/homeassistant.db  # 数据库文件（如果需要）
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     
-    # 工作目录（使用挂载的代码）
+    # 工作目录
     working_dir: /data/scripts
     
     # 重启策略

@@ -1,4 +1,4 @@
-# ARMv7架构优化Dockerfile - 最小化镜像
+# ARMv7架构运行环境镜像 - 不包含代码，仅提供运行环境
 FROM python:3.12-slim-bookworm
 
 # 设置环境变量
@@ -9,9 +9,6 @@ ENV CONTAINER_TIMEZONE=Asia/Shanghai
 ENV TZ=Asia/Shanghai
 ENV LANG=C.UTF-8
 ENV PYTHON_IN_DOCKER='PYTHON_IN_DOCKER'
-
-# 创建非root用户
-RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # 安装系统依赖
 RUN set -eux; \
@@ -47,47 +44,37 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*; \
     apt-get clean
 
-# 创建应用目录
-WORKDIR /app
-RUN mkdir -p /data && chown -R appuser:appuser /app /data
+# 创建数据目录（root权限）
+RUN mkdir -p /data /data/errors /data/errors/screenshots
 
-# 修复Python 3.12兼容性并安装numpy（经验证的工作方案）
+# 修复Python 3.12兼容性并安装numpy
 RUN set -eux; \
-    # 升级pip和核心包，修复Python 3.12兼容性
     pip install --no-cache-dir --upgrade pip setuptools>=68.0.0 wheel; \
-    # 直接安装经验证与Python 3.12兼容的numpy版本
     echo "🎯 安装Python 3.12兼容的numpy..."; \
-    pip install --no-cache-dir --root-user-action=ignore numpy>=1.26.0; \
-    # 安装Pillow
+    pip install --no-cache-dir numpy>=1.26.0; \
     echo "🎯 安装Pillow..."; \
-    pip install --no-cache-dir --root-user-action=ignore Pillow>=10.0.0; \
-    # 验证安装
-    python3 -c "import numpy as np; print('✅ numpy version:', np.__version__, '- shape test:', np.array([1,2,3]).shape)"; \
+    pip install --no-cache-dir Pillow>=10.0.0; \
+    python3 -c "import numpy as np; print('✅ numpy version:', np.__version__)"; \
     python3 -c "from PIL import Image; print('✅ PIL导入成功')"; \
     pip cache purge
 
-# 复制requirements.txt并安装其他Python依赖
+# 复制requirements.txt并安装Python依赖
 COPY requirements.txt /tmp/requirements.txt
 RUN set -eux; \
-    # 从requirements.txt中排除numpy和Pillow（已安装）
     grep -v "^numpy" /tmp/requirements.txt | grep -v "^Pillow" > /tmp/requirements_filtered.txt || echo "过滤完成"; \
-    echo "📋 剩余依赖："; \
+    echo "📋 安装依赖："; \
     cat /tmp/requirements_filtered.txt; \
-    pip install --no-cache-dir --root-user-action=ignore -r /tmp/requirements_filtered.txt; \
+    pip install --no-cache-dir -r /tmp/requirements_filtered.txt; \
     rm -rf /tmp/*; \
     pip cache purge; \
-    # 最终验证：确保所有关键包都可用
-    python3 -c "import numpy as np; import requests; import selenium; from PIL import Image; import sympy; print('✅ 所有关键依赖验证通过')"
+    python3 -c "import requests; import selenium; print('✅ 所有关键依赖验证通过')"
 
 # 下载 ARMv7 版本的 geckodriver（linux32）
-# 此 Dockerfile 专门用于 ARMv7 架构，直接下载对应版本
 RUN set -eux; \
     echo "📦 下载 ARMv7 (linux32) 版本的 geckodriver..."; \
     VER=v0.34.0; \
     URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux32.tar.gz"; \
     echo "🔗 主URL: $URL"; \
-    \
-    # 下载 geckodriver
     wget -O /tmp/geckodriver.tgz "$URL" --retry-connrefused --tries=5 --timeout=30 || { \
         echo "⚠️  v0.34.0 下载失败，尝试 v0.33.0..."; \
         VER=v0.33.0; \
@@ -95,31 +82,19 @@ RUN set -eux; \
         echo "🔄 备用URL: $URL"; \
         wget -O /tmp/geckodriver.tgz "$URL" --retry-connrefused --tries=3 --timeout=30; \
     }; \
-    \
-    # 解压安装
     tar -xzf /tmp/geckodriver.tgz -C /usr/local/bin/; \
     chmod +x /usr/local/bin/geckodriver; \
-    \
-    # 验证安装
     echo "✅ Geckodriver 安装完成"; \
-    echo "📋 文件信息:"; \
     file /usr/local/bin/geckodriver 2>/dev/null || echo "  (file命令不可用)"; \
     ls -lh /usr/local/bin/geckodriver; \
-    \
-    # 清理
     rm -f /tmp/geckodriver.tgz; \
-    echo "🎉 ARMv7 Geckodriver 安装完成"
+    echo "🎉 ARMv7 运行环境准备完成"
 
-# 复制应用代码
-COPY scripts/*.py /app/
-RUN chown -R appuser:appuser /app
+# 工作目录
+WORKDIR /data/scripts
 
-# 切换到非root用户
-USER appuser
+# 使用 root 用户运行（最高权限）
+# 不创建非root用户，直接以root运行
 
-# 健康检查（修正模块导入）
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python3 -c "from ncc_matcher import NCCMatcher; print('NCC Health Check OK')" || exit 1
-
-# 启动命令
+# 容器启动时执行的命令（可被 docker-compose 覆盖）
 CMD ["python3", "main.py"]
