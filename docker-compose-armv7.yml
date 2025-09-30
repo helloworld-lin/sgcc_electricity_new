@@ -58,6 +58,7 @@ services:
     # 卷映射 - 挂载本地代码和数据
     volumes:
       - ./scripts:/data/scripts  # 挂载本地代码目录
+      - ./errors:/data/errors  # 挂载错误日志和截图目录
       - ./data:/data/data  # 数据存储
       - ./.env:/data/.env:ro  # 环境变量文件（只读）
       - ./homeassistant.db:/data/homeassistant.db  # 数据库文件（如果需要）
