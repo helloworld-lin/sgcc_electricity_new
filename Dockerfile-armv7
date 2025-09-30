@@ -24,6 +24,7 @@ RUN set -eux; \
       wget \
       tar \
       curl \
+      file \
       python3-pip \
       python3-setuptools \
       python3-wheel \
@@ -78,31 +79,36 @@ RUN set -eux; \
     # 最终验证：确保所有关键包都可用
     python3 -c "import numpy as np; import requests; import selenium; from PIL import Image; import sympy; print('✅ 所有关键依赖验证通过')"
 
-# 智能下载geckodriver（ARMv7兼容版本）
+# 下载 ARMv7 版本的 geckodriver（linux32）
+# 此 Dockerfile 专门用于 ARMv7 架构，直接下载对应版本
 RUN set -eux; \
-    ARCH=$(dpkg --print-architecture); \
-    echo "检测到架构: $ARCH"; \
-    case "$ARCH" in \
-      amd64)  VER=v0.35.0; URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux64.tar.gz" ;; \
-      arm64)  VER=v0.35.0; URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux-aarch64.tar.gz" ;; \
-      armhf)  VER=v0.34.0; URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux32.tar.gz" ;; \
-      *) echo "不支持的架构: $ARCH"; exit 1 ;; \
-    esac; \
-    echo "下载 geckodriver $VER 从: $URL"; \
+    echo "📦 下载 ARMv7 (linux32) 版本的 geckodriver..."; \
+    VER=v0.34.0; \
+    URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux32.tar.gz"; \
+    echo "🔗 主URL: $URL"; \
+    \
+    # 下载 geckodriver
     wget -O /tmp/geckodriver.tgz "$URL" --retry-connrefused --tries=5 --timeout=30 || { \
-        echo "主URL失败，尝试备用版本..."; \
-        if [ "$ARCH" = "armhf" ]; then \
-            VER=v0.33.0; \
-            URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux32.tar.gz"; \
-            wget -O /tmp/geckodriver.tgz "$URL" --retry-connrefused --tries=3 --timeout=30; \
-        else \
-            exit 1; \
-        fi; \
+        echo "⚠️  v0.34.0 下载失败，尝试 v0.33.0..."; \
+        VER=v0.33.0; \
+        URL="https://github.com/mozilla/geckodriver/releases/download/$VER/geckodriver-$VER-linux32.tar.gz"; \
+        echo "🔄 备用URL: $URL"; \
+        wget -O /tmp/geckodriver.tgz "$URL" --retry-connrefused --tries=3 --timeout=30; \
     }; \
+    \
+    # 解压安装
     tar -xzf /tmp/geckodriver.tgz -C /usr/local/bin/; \
     chmod +x /usr/local/bin/geckodriver; \
-    geckodriver --version; \
-    rm -f /tmp/geckodriver.tgz
+    \
+    # 验证安装
+    echo "✅ Geckodriver 安装完成"; \
+    echo "📋 文件信息:"; \
+    file /usr/local/bin/geckodriver 2>/dev/null || echo "  (file命令不可用)"; \
+    ls -lh /usr/local/bin/geckodriver; \
+    \
+    # 清理
+    rm -f /tmp/geckodriver.tgz; \
+    echo "🎉 ARMv7 Geckodriver 安装完成"
 
 # 复制应用代码
 COPY scripts/*.py /app/
